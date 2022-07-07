@@ -1,0 +1,104 @@
+import numpy as np
+import cvxopt
+import cvxopt.solvers
+import matplotlib.pyplot as plt
+
+
+def linear_kernel(X, y):
+    Xy = np.multiply(X, np.transpose(y))
+    K = np.dot(Xy, np.transpose(Xy))
+    return K
+
+
+def poli_kernel(X, y):
+    XX = (np.multiply(X, X) + 1)**3
+    Xy = np.multiply(XX, np.transpose(y))
+    K = np.dot(Xy, np.transpose(Xy))
+    return K
+
+
+# https://cvxopt.org/userguide/coneprog.html#quadratic-programming
+
+
+def SVM(X, y):
+    """
+    Implement max-margin SVM using dual formalism
+    :param X: the x vector
+    :param y: y vector
+    :return:
+    """
+    samples_num = X.shape[0]
+    K = linear_kernel(X, y)
+    P = cvxopt.matrix(K)
+    q = cvxopt.matrix(-1 * np.ones((samples_num, 1)))
+    G = cvxopt.matrix(-1 * np.eye(samples_num))
+    h = cvxopt.matrix(np.zeros(samples_num))
+    # A = cvxopt.matrix(np.reshape(y, (1, -1)) * 1.0)
+    # b = cvxopt.matrix(np.zeros(1))
+    # a = cvxopt.solvers.qp(P, q, G, h, A, b)
+
+    a = cvxopt.solvers.qp(P, q, G, h)
+
+    alpha = np.array(a['x'])
+
+    # we will get w by the derivative of the Legraingen by w and the equation will give is
+    #                   w = sum over mu of (alphas * y * X)
+    dot_results = np.multiply(alpha, np.transpose(y))
+    w = np.transpose(np.dot(np.transpose(dot_results), X))
+    vec_support = np.ndarray.flatten(np.isclose(a['x'], 0))
+    b = np.transpose(y)[vec_support] - np.dot(X[vec_support], w)
+    if len(b) > 0:
+        b = b[0]
+    else:
+        b = 0
+    return a['status'] == 'optimal', alpha, w, b
+
+
+# c
+def random_problems(N: int, P_samples: int = 20):
+    """
+    Create many random problems of P samples for normal distribution X and
+    :param P_samples: mu
+    :param N: the dimension
+    :return:
+    """
+    n = N
+    p = 0.5
+    size = (P_samples, N)  # P = mu
+    binomial_dis = np.random.choice([-1, 1], size=(1, P_samples))
+    normal_dis = np.random.normal(0, 1 / N, size)
+    return binomial_dis, normal_dis
+
+
+def probability_for_(N: int = 10):
+    """
+
+    :return:
+    """
+    count = 0
+    for i in range(20):
+        binomial_dist, normal_dist = random_problems(N)
+        sol = SVM(normal_dist, binomial_dist)
+        if sol[0]:
+            count += 1
+    return count / 20
+
+
+def data_res():
+    """
+
+    :return:
+    """
+    x = list()
+    y = list()
+    for N in range(1, 30, 2):
+        x.append(N)
+        y.append(probability_for_(N))
+
+    plt.plot(x, y, 'ro')
+    plt.title('The probability of a valid solution for different values of N')
+    plt.xlabel("N")
+    plt.ylabel("Probability")
+    plt.show()
+
+data_res()
